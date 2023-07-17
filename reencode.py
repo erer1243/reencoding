@@ -16,7 +16,6 @@ import sqlite3
 import hashlib
 import traceback
 from os import path
-from dataclasses import dataclass
 
 class Log:
     cyan    = '\033[36m'
@@ -210,14 +209,6 @@ class BadEncodingDatabase:
             while buf := f.read(1024 * 1024):
                 hasher.update(buf)
         return hasher.digest()
-
-# @dataclass
-# class EncodingParameters:
-#     crf: int
-#     preset: str
-#     force: bool
-#     extra_args: list[str] = []
-#     dont_copy: bool = False
 
 # The big one
 @Log.traced
