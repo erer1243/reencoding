@@ -16,6 +16,7 @@ import sqlite3
 import hashlib
 import traceback
 from os import path
+from dataclasses import dataclass
 
 class Log:
     cyan    = '\033[36m'
