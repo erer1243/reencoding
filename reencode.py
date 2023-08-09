@@ -273,6 +273,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
             if not force and percent >= 100:
                 out_bytes = file_size(temp_out_file)
                 db.insert(in_file, crf, preset, out_bytes)
+                copy_file(in_file, out_file)
                 Log.error("File size increased!")
 
             copy_file(temp_out_file, out_file)
