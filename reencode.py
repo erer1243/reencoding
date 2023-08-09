@@ -17,6 +17,7 @@ import hashlib
 import traceback
 from os import path
 from dataclasses import dataclass
+from typing import Optional
 
 class Log:
     cyan    = '\033[36m'
@@ -28,7 +29,7 @@ class Log:
     pidtag  = f"{cyan}[{os.getpid()}]{reset}"
     tracing = False
 
-    def print(first, *args): 
+    def print(first, *args):
         print(f"{Log.pidtag}{first}", *args, file=sys.stderr)
         sys.stderr.flush()
 
@@ -40,15 +41,15 @@ class Log:
             Log.trace(f"{func.__qualname__}({printed_all_args})")
             return func(*args, **kwargs)
         return wrapper
-        
+
     def trace(*args):
         if Log.tracing:
             Log.print(f"{Log.magenta}[TRACE]{Log.reset}", *args)
 
     def info(*args):
         Log.print(f"{Log.green}[INFO]{Log.reset}", *args)
-    
-    def warn(*args): 
+
+    def warn(*args):
         Log.print(f"{Log.yellow}[WARN]{Log.reset}", *args)
 
     class ErrorCalled(Exception): pass
@@ -67,9 +68,9 @@ class Probe:
     def probe(file):
         result = run([
             "ffprobe",
-            "-loglevel", "error", 
-            "-show_entries", "stream=codec_name,codec_type:format=duration", 
-            "-print_format", "json", 
+            "-loglevel", "error",
+            "-show_entries", "stream=codec_name,codec_type:format=duration",
+            "-print_format", "json",
             file
         ])
         data = json.loads(result)
@@ -104,7 +105,7 @@ class Probe:
 def run(cmd_list):
     Log.info(shlex.join(cmd_list))
     proc = subprocess.run(cmd_list, check=True, stdout=subprocess.PIPE)
-    result = proc.stdout.decode('utf-8') 
+    result = proc.stdout.decode('utf-8')
     return result
 
 @Log.traced
@@ -152,11 +153,11 @@ def copy_file(src: str, dst: str):
     else:
         Log.info(f"Copying '{src}' to '{dst}'")
         shutil.copy2(src, dst)
-    
+
 
 class BadEncodingDatabase:
     def __init__(self):
-        script_dir = path.dirname(__file__) 
+        script_dir = path.dirname(__file__)
         db_path = path.join(script_dir, "badencodings.db")
         self.db = sqlite3.connect(db_path)
         self.init_db()
@@ -180,7 +181,7 @@ class BadEncodingDatabase:
             )
         """)
         self.db.commit()
-    
+
     @Log.traced
     def check(self, f: str, crf: int, preset: str):
         params = (BadEncodingDatabase.hash_file(f), crf, preset)
@@ -213,7 +214,7 @@ class BadEncodingDatabase:
 
 # The big one
 @Log.traced
-def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, extra_args=[], dont_copy=False):
+def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, extra_args: list[str] = [], dont_copy: bool = False, out_width: Optional[int] = None):
     if not out_file.endswith(".mp4"):
         Log.warn("File will be converted into mp4")
         out_file = as_mp4(out_file)
@@ -228,8 +229,9 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
     acodec = Probe.acodec(in_file)
     encoder = (codec == "hevc") and "copy" or "libx265"
     aencoder = (acodec == "aac" or acodec is None) and "copy" or "aac"
-    
-    if not force and encoder == "copy" and aencoder == "copy":
+    scale_args = out_width and ["-vf", f"scale=-1:{out_width}"] or []
+
+    if not force and encoder == "copy" and aencoder == "copy" and out_width == None:
         Log.warn("Input file is already encoded as hevc/aac")
         if dont_copy:
             return None
@@ -240,7 +242,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
 
         with BadEncodingDatabase() as db, tempfile.TemporaryDirectory() as tmp_dir:
             Log.trace("tmp_dir =", tmp_dir)
-            
+
             if not force and (prev_result := db.check(in_file, crf, preset)):
                 out_size = humansize.humansize(prev_result)
                 Log.warn(f"File in bad encodings database (increases {in_size} -> {out_size})")
@@ -250,15 +252,19 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
                     copy_file(in_file, out_file)
                     return out_file
 
-            temp_out_file = path.join(tmp_dir, path.basename(out_file))        
-            ffmpeg(extra_args + [
-                "-i", in_file, 
-                "-c:a", aencoder,
-                "-c:v", encoder, 
-                "-crf", str(crf), 
-                "-preset", preset,
-                temp_out_file
-            ])
+            temp_out_file = path.join(tmp_dir, path.basename(out_file))
+            ffmpeg(
+                extra_args
+                + [
+                    "-i", in_file,
+                    "-c:a", aencoder,
+                    "-c:v", encoder,
+                    "-crf", str(crf),
+                    "-preset", preset
+                ]
+                + scale_args
+                + [ temp_out_file ]
+            )
 
             percent = file_size_percent(temp_out_file, in_file)
             out_size = humansize.humansize_file(temp_out_file)
@@ -290,7 +296,7 @@ def benchmark(in_file: str, out_dir: str):
         extra_args = ["-t", str(BENCHMARK_DURATION), "-ss", str(skiptime)]
     else:
         extra_args = []
-   
+
     # Grab sample file
     sample = path.join(out_dir, "sample.mp4")
     ffmpeg(extra_args + [
@@ -299,7 +305,7 @@ def benchmark(in_file: str, out_dir: str):
         "-c:v", "copy",
         sample
     ])
-    
+
     # Do benchmarks
     reports = []
     for (crf, preset) in BENCHMARKS:
@@ -339,6 +345,7 @@ class RunArgs:
     replace: bool
     # outfile: str
     benchmark: bool
+    width: Optional[int]
 
 @Log.traced
 def reencode_replace(ra: RunArgs):
@@ -354,7 +361,7 @@ def reencode_replace(ra: RunArgs):
         if dest != ra.in_file and path.exists(dest):
             Log.error(f"Replacing '{ra.in_file}' would overwrite a different file: '{dest}'")
 
-        if out_file := reencode(ra.in_file, out_file, ra.crf, ra.preset, ra.force, dont_copy=True):
+        if out_file := reencode(ra.in_file, out_file, ra.crf, ra.preset, ra.force, dont_copy=True, out_width = ra.width):
             if ra.nobackup:
                 os.remove(ra.in_file)
             else:
@@ -372,8 +379,8 @@ def print_probe(f: str):
     print(size, codec, f"{min}:{sec:02}", f, sep=", ")
 
 def skip_file(f: str):
-    SKIP_EXTS = {"jpg", "png", "jpeg", "posts", "yml", "info", "sh", "pdf", "swf", "xml", "mp3", "css", "url", 
-                 "txt", "html", "exe", "py", "dv", "heic", "db", "zip", "psd", "pyc", "pem", "jpe", "typed", "readme", 
+    SKIP_EXTS = {"jpg", "png", "jpeg", "posts", "yml", "info", "sh", "pdf", "swf", "xml", "mp3", "css", "url",
+                 "txt", "html", "exe", "py", "dv", "heic", "db", "zip", "psd", "pyc", "pem", "jpe", "typed", "readme",
                  "md", "rar"}
     has_skip_ext = any(map(lambda ext, s=f: s.lower().endswith(ext), SKIP_EXTS))
     return is_backup(f) or has_skip_ext
@@ -391,7 +398,7 @@ def main_run(ra: RunArgs):
         reencode_replace(ra)
     else:
         out_file = path.join(ra.outdir, path.basename(ra.in_file))
-        out_file = reencode(ra.in_file, out_file, ra.crf, ra.preset, ra.force)
+        out_file = reencode(ra.in_file, out_file, ra.crf, ra.preset, ra.force, out_width = ra.width)
 
         if ra.replacelink:
             if ra.nobackup:
@@ -415,13 +422,14 @@ def main():
     parser.add_argument("--probe", help="Print probe information for input file (hint: pipe loops into `column -t -s , -l 4`)", action="store_true")
     parser.add_argument("--outdir", help="Output reencoded video into the given directory, with an inferred name", default="./")
     parser.add_argument("--trace", help="Enable tracing logs", action="store_true")
+    parser.add_argument("--width", help="Scale the output to have the given width", type=int)
     output_args = parser.add_mutually_exclusive_group()
     output_args.add_argument("--replace", help="Replace the input file after encoding", action="store_true")
     # output_args.add_argument("--outfile", help="Output reencoded video to the given path, must end in .mp4", default=INFER_OUTFILE)
     output_args.add_argument("--benchmark", help="Run benchmarks", action="store_true")
     args = parser.parse_args()
 
-    ra = RunArgs(args.INPUT, args.crf, args.preset, args.force, args.replacelink, args.nobackup, args.probe, args.outdir, args.trace, args.replace, args.benchmark)
+    ra = RunArgs(args.INPUT, args.crf, args.preset, args.force, args.replacelink, args.nobackup, args.probe, args.outdir, args.trace, args.replace, args.benchmark, args.width)
     main_run(ra)
 
 if __name__ == "__main__":
