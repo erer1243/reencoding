@@ -229,7 +229,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
     acodec = Probe.acodec(in_file)
     encoder = (codec == "hevc") and "copy" or "libx265"
     aencoder = (acodec == "aac" or acodec is None) and "copy" or "aac"
-    scale_args = out_width and ["-vf", f"scale=-1:{out_width}"] or []
+    scale_args = out_width and ["-vf", f"scale=-1:min(iw,{out_width})"] or []
 
     if not force and encoder == "copy" and aencoder == "copy" and out_width == None:
         Log.warn("Input file is already encoded as hevc/aac")
