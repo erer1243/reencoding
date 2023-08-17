@@ -183,8 +183,9 @@ class BadEncodingDatabase:
         self.db.commit()
 
     @Log.traced
-    def check(self, f: str, crf: int, preset: str):
-        params = (BadEncodingDatabase.hash_file(f), crf, preset)
+    def check(self, path: str, crf: int, preset: str):
+        file_hash = BadEncodingDatabase.hash_file(path)
+        params = (file_hash, crf, preset)
         cursor = self.db.execute("""
             SELECT output_bytes FROM bad_encodings WHERE hash == ? AND crf == ? AND preset == ?
         """, params)
