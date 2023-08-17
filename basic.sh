@@ -1,4 +1,4 @@
-#!/bin/sh -ev
+#!/bin/sh -ex
 REENC="$(dirname "$0")"/reencode.py
 
 if [ -S /tmp/xidlehook ]; then

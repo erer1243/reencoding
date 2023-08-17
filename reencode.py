@@ -445,7 +445,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print(file=sys.stderr)
         Log.warn("KeyboardInterrupt")
-        exitcode = 1
+        exitcode = 2
     except Exception as e:
         # import pdb
         extype, value, tb = sys.exc_info()
