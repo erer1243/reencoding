@@ -111,6 +111,7 @@ def run(cmd_list):
 @Log.traced
 def ffmpeg(args: list[str]):
     return run([
+        "nice",
         "ffmpeg",
         "-n",
         "-nostdin",
