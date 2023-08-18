@@ -215,20 +215,20 @@ class BadEncodingDatabase:
 
 # Non-blocking file lock
 class NBFlock:
-    def __init__(self, path: str):
-        self.fd = os.open(path, os.O_RDWR) # O_RDWR is required for lockf
-
-        try:
-            os.lockf(self.fd, os.F_TLOCK, 0)
-        except BlockingIOError:
-            Log.error(f"File is locked: {path}")
+    def __init__(self, f: str):
+        basename = path.basename(f)
+        dirname = path.dirname(f)
+        lock_name = basename + ".reenc_lock"
+        self.lock_path = pathlib.Path(dirname, lock_name)
+        if self.lock_path.exists():
+            Log.error("File is locked")
+        self.lock_path.touch()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args):
-        os.lockf(self.fd, os.F_ULOCK, 0)
-        os.close(self.fd)
+        self.lock_path.unlink()
 
 # The big one
 @Log.traced
@@ -259,7 +259,11 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
     else:
         in_size = humansize.humansize_file(in_file)
 
-        with NBFlock(in_file) as lock, BadEncodingDatabase() as db, tempfile.TemporaryDirectory() as tmp_dir:
+        with (
+            NBFlock(in_file), 
+            BadEncodingDatabase() as db, 
+            tempfile.TemporaryDirectory() as tmp_dir
+        ):
             Log.trace("tmp_dir =", tmp_dir)
 
             if not force and (prev_result := db.check(in_file, crf, preset)):
