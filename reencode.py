@@ -220,8 +220,7 @@ class NBFlock:
 
         try:
             os.lockf(self.fd, os.F_TLOCK, 0)
-        except BlockingIOError as e:
-            print(e)
+        except BlockingIOError:
             Log.error(f"File is locked: {path}")
 
     def __enter__(self):
