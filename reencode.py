@@ -155,7 +155,6 @@ def copy_file(src: str, dst: str):
         Log.info(f"Copying '{src}' to '{dst}'")
         shutil.copy2(src, dst)
 
-
 class BadEncodingDatabase:
     def __init__(self):
         script_dir = path.dirname(__file__)
@@ -214,6 +213,24 @@ class BadEncodingDatabase:
                 hasher.update(buf)
         return hasher.digest()
 
+# Non-blocking file lock
+class NBFlock:
+    def __init__(self, path: str):
+        self.fd = os.open(path, os.O_RDWR) # O_RDWR is required for lockf
+
+        try:
+            os.lockf(self.fd, os.F_TLOCK, 0)
+        except BlockingIOError as e:
+            print(e)
+            Log.error(f"File is locked: {path}")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        os.lockf(self.fd, os.F_ULOCK, 0)
+        os.close(self.fd)
+
 # The big one
 @Log.traced
 def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, extra_args: list[str] = [], dont_copy: bool = False, out_width: Optional[int] = None):
@@ -243,7 +260,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
     else:
         in_size = humansize.humansize_file(in_file)
 
-        with BadEncodingDatabase() as db, tempfile.TemporaryDirectory() as tmp_dir:
+        with NBFlock(in_file) as lock, BadEncodingDatabase() as db, tempfile.TemporaryDirectory() as tmp_dir:
             Log.trace("tmp_dir =", tmp_dir)
 
             if not force and (prev_result := db.check(in_file, crf, preset)):
