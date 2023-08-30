@@ -395,11 +395,11 @@ def reencode_replace(ra: RunArgs):
 
 @Log.traced
 def print_probe(f: str):
-    dur = Probe.duration(in_file)
+    dur = Probe.duration(f)
     min = int(dur / 60)
     sec = round(dur % 60, 2)
-    size = humansize.humansize_file(in_file)
-    codec = Probe.codec(in_file)
+    size = humansize.humansize_file(f)
+    codec = Probe.codec(f)
     print(size, codec, f"{min}:{sec:02}", f, sep=", ")
 
 def skip_file(f: str):
