@@ -238,12 +238,13 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
         out_file = as_mp4(out_file)
 
     Log.info("input  =", "'" + in_file + "'")
-    Log.info("output =", "'" + out_file + "'")
     Log.check(path.isfile(in_file), "Not a file")
     Log.check(not path.islink(in_file), "Refusing symlink")
     Log.check(not path.basename(in_file).startswith("."), "Refusing dotfile")
     Log.check(not path.exists(out_file), "Output file already exists")
     Log.check(Probe.isvideo(in_file), "Not a video file")
+    Log.info("output =", "'" + out_file + "'")
+
     codec = Probe.codec(in_file)
     acodec = Probe.acodec(in_file)
     encoder = (codec == "hevc") and "copy" or "libx265"
