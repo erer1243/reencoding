@@ -351,10 +351,10 @@ def benchmark(in_file: str, out_dir: str):
 
 @Log.traced
 def backup(f: str):
-    shutil.move(f, "REENC_BACKUP-" + f)
+    shutil.move(f, f + ".reenc_backup")
 
 def is_backup(f: str):
-    return "REENC_BACKUP" in f
+    f.endswith(".reenc_backup")
 
 @dataclass
 class RunArgs:
