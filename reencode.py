@@ -444,7 +444,7 @@ def main():
     parser.add_argument("--crf", help="libx265 CRF value, 0-51", type=int, default=23)
     parser.add_argument("--force", help="Reencode videos even if they are already encoded as HEVC", action='store_true')
     parser.add_argument("--replacelink", help="Replace input file with a symlink to the output file", action="store_true")
-    parser.add_argument("--nobackup", help="Disable backing up original files to a reencoding_backups folder", action="store_true")
+    parser.add_argument("--nobackup", help="Disable backing up original files when using --replace", action="store_true")
     parser.add_argument("--probe", help="Print probe information for input file (hint: pipe loops into `column -t -s , -l 4`)", action="store_true")
     parser.add_argument("--outdir", help="Output reencoded video into the given directory, with an inferred name", default="./")
     parser.add_argument("--trace", help="Enable tracing logs", action="store_true")
