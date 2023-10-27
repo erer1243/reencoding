@@ -285,7 +285,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
                     "-c:v", encoder,
                     "-crf", str(crf),
                     "-preset", preset,
-                    "-x265-params", "loglevel=error"
+                    "-x265-params", "log-level=error"
                 ]
                 + scale_args
                 + [ temp_out_file ]
