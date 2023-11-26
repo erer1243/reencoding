@@ -118,7 +118,11 @@ def ffmpeg(args: list[str]):
         "-hide_banner"
     ] + args)
 
-def as_mp4(f: str):
+def as_mp4(f: str, warn: bool = True):
+    if f.lower().endswith("mp4"):
+        return f
+    if warn:
+        Log.warn("File will be converted into mp4")
     dirname = path.dirname(f)
     basename = path.basename(f)
     mp4 = basename.rsplit(".", 1)[0] + ".mp4"
@@ -233,9 +237,7 @@ class NBFlock:
 # The big one
 @Log.traced
 def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, extra_args: list[str] = [], dont_copy: bool = False, out_width: Optional[int] = None):
-    if not out_file.endswith(".mp4"):
-        Log.warn("File will be converted into mp4")
-        out_file = as_mp4(out_file)
+    out_file = as_mp4(out_file)
 
     Log.info("input  =", "'" + in_file + "'")
     Log.info("output =", "'" + out_file + "'")
@@ -368,7 +370,6 @@ class RunArgs:
     outdir: str
     trace: bool
     replace: bool
-    # outfile: str
     benchmark: bool
     width: Optional[int]
 
@@ -376,17 +377,13 @@ class RunArgs:
 def reencode_replace(ra: RunArgs):
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Passing dont_copy=True means out_file is None when reencoding isn't performed
-        out_file = path.join(tmp_dir, path.basename(ra.in_file))
+        initial_out_file = path.join(tmp_dir, path.basename(ra.in_file))
 
-        if ra.in_file.lower().endswith("mp4"):
-            dest = ra.in_file
-        else:
-            dest = as_mp4(ra.in_file)
-
+        dest = as_mp4(ra.in_file, warn=False)
         if dest != ra.in_file and path.exists(dest):
             Log.error(f"Replacing '{ra.in_file}' would overwrite a different file: '{dest}'")
 
-        if out_file := reencode(ra.in_file, out_file, ra.crf, ra.preset, ra.force, dont_copy=True, out_width = ra.width):
+        if out_file := reencode(ra.in_file, initial_out_file, ra.crf, ra.preset, ra.force, dont_copy=True, out_width = ra.width):
             if ra.nobackup:
                 os.remove(ra.in_file)
             else:
@@ -435,7 +432,6 @@ def main_run(ra: RunArgs):
 
 def main():
     PRESETS = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
-    # INFER_OUTFILE = "<INPUT>.mp4"
 
     parser = argparse.ArgumentParser(description="ffmpeg wrapper", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("INPUT", help="Input video file")
@@ -450,7 +446,6 @@ def main():
     parser.add_argument("--width", help="Scale the output to have the given width", type=int)
     output_args = parser.add_mutually_exclusive_group()
     output_args.add_argument("--replace", help="Replace the input file after encoding", action="store_true")
-    # output_args.add_argument("--outfile", help="Output reencoded video to the given path, must end in .mp4", default=INFER_OUTFILE)
     output_args.add_argument("--benchmark", help="Run benchmarks", action="store_true")
     args = parser.parse_args()
 
@@ -468,10 +463,8 @@ if __name__ == "__main__":
         Log.warn("KeyboardInterrupt")
         exitcode = 2
     except Exception as e:
-        # import pdb
         extype, value, tb = sys.exc_info()
         traceback.print_exc()
-        # pdb.post_mortem(tb)
         exitcode = 1
     finally:
         print()
