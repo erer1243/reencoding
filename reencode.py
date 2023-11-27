@@ -245,7 +245,7 @@ def reencode(in_file: str, out_file: str, crf: int, preset: str, force: bool, ex
     Log.check(not path.islink(in_file), "Refusing symlink")
     Log.check(not path.basename(in_file).startswith("."), "Refusing dotfile")
     Log.check(not path.exists(out_file), "Output file already exists")
-    Log.check(Probe.isvideo(in_file), "Not a video file")
+    Log.check(Probe.isvideo(in_file), "Not a compatible file")
     codec = Probe.codec(in_file)
     acodec = Probe.acodec(in_file)
     encoder = (codec == "hevc") and "copy" or "libx265"
