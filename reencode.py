@@ -225,7 +225,7 @@ class NBFlock:
         lock_name = basename + ".reenc_lock"
         self.lock_path = pathlib.Path(dirname, lock_name)
         if self.lock_path.exists():
-            Log.error("File is locked")
+            Log.error(f"File is locked ({self.lock_path})")
         self.lock_path.touch()
 
     def __enter__(self):
